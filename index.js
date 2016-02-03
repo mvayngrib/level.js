@@ -51,6 +51,7 @@ Level.prototype._get = function (key, options, callback) {
     if (options.raw) asBuffer = false
     if (asBuffer) {
       if (value instanceof Uint8Array) value = toBuffer(value)
+      else if (value == null) value = new Buffer(0)
       else value = new Buffer(String(value))
     }
     return callback(null, value, key)
