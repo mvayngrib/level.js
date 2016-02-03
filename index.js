@@ -100,8 +100,7 @@ Level.prototype.convertEncoding = function(key, value, options) {
   return obj
 }
 
-Level.prototype.iterator = function (options) {
-  if (typeof options !== 'object') options = {}
+Level.prototype._iterator = function (options) {
   return new Iterator(this.idb, options)
 }
 
