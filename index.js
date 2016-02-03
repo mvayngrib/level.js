@@ -40,8 +40,10 @@ Level.prototype._open = function(options, callback) {
 }
 
 Level.prototype._get = function (key, options, callback) {
-  this.idb.get(key, function (value) {
-    if (value === undefined) {
+  // should differentiatie between undefined values and "not found"
+  var found, value;
+  function onEnd() {
+    if (!found) {
       // 'NotFound' error, consistent with LevelDOWN API
       return callback(new Error('NotFound'))
     }
@@ -55,7 +57,16 @@ Level.prototype._get = function (key, options, callback) {
       else value = new Buffer(String(value))
     }
     return callback(null, value, key)
-  }, callback)
+  };
+  var opts = {
+    keyRange: key,
+    onEnd: onEnd,
+    onError: callback
+  };
+  this.idb.iterate(function(item) {
+    found = true;
+    value = item;
+  }, opts);
 }
 
 Level.prototype._del = function(id, options, callback) {
