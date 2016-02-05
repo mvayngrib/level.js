@@ -17,7 +17,6 @@ function Iterator (db, options) {
   if (this._limit === 0) return // skip further processing and wait for first call to _next
 
   this._count = 0
-  this._done  = false
   var lower = ltgt.lowerBound(options)
   var upper = ltgt.upperBound(options)
   try {
@@ -65,10 +64,10 @@ Iterator.prototype.onItem = function (value, cursor, cursorTransaction) {
     self._count++;
 
     var key = self.options.keyAsBuffer !== false
-      ? Buffer(cursor.key)
+      ? new Buffer(cursor.key)
       : cursor.key
     var value = self.options.valueAsBuffer !== false
-      ? Buffer(cursor.value)
+      ? new Buffer(cursor.value)
       : cursor.value
     cb(null, key, value)
     if (!self._cursorEnded) {
