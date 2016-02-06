@@ -12,31 +12,73 @@ function Level(location) {
   if (!(this instanceof Level)) return new Level(location)
 
   AbstractLevelDOWN.call(this, location)
-
-  this.IDBOptions = {}
-  this.location = location
 }
 
 util.inherits(Level, AbstractLevelDOWN)
 
+/**
+ * Open a database and optionally create if missing.
+ *
+ * @param {Object} [options]  storeName and other options passed to indexedDB
+ *                            open and createObjectStore.
+ * @param {Function} callback  First parameter will be an error object or null.
+ */
 Level.prototype._open = function(options, callback) {
   var self = this
-    
-  var idbOpts = {
-    storeName: this.location,
-    autoIncrement: false,
-    keyPath: null,
-    onStoreReady: function () {
-      callback && callback(null, self.idb)
-    }, 
-    onError: function(err) {
-      callback && callback(err)
-    }
+
+  // assume createIfMissing and errorIfExists are initialized by abstract-leveldown
+  this._idbOpts = xtend({
+    storeName: this.location
+  }, options)
+
+  var req = indexedDB.open(this.location) // use the databases current version
+
+  req.onerror = function(ev) {
+    callback(ev.target.error)
   }
-  
-  xtend(idbOpts, options)
-  this.IDBOptions = idbOpts
-  this.idb = new IDB(idbOpts)
+
+  // if the store does not exist and createIfMissing is true, create the object store
+  req.onsuccess = function() {
+    self._db = req.result
+
+    var exists = self._db.objectStoreNames.contains(self._idbOpts.storeName)
+
+    if (options.errorIfExists && exists) {
+      self._db.close()
+      callback(new Error('store already exists'))
+      return
+    }
+
+    if (!options.createIfMissing && !exists) {
+      self._db.close()
+      callback(new Error('store does not exist'))
+      return
+    }
+
+    if (options.createIfMissing && !exists) {
+      self._db.close()
+
+      var req2 = indexedDB.open(self.location, self._db.version + 1)
+
+      req2.onerror = function(ev) {
+        callback(ev.target.error)
+      }
+
+      req2.onupgradeneeded = function() {
+        var db = req2.result
+        db.createObjectStore(self._idbOpts.storeName, self._idbOpts)
+      }
+
+      req2.onsuccess = function() {
+        self._db = req2.result
+        callback(null, self)
+      }
+
+      return
+    }
+
+    callback(null, self)
+  }
 }
 
 Level.prototype._get = function (key, options, callback) {
@@ -136,8 +178,8 @@ Level.prototype._batch = function (array, options, callback) {
 }
 
 Level.prototype._close = function (callback) {
-  this.idb.db.close()
-  callback()
+  this._db.close()
+  process.nextTick(callback)
 }
 
 Level.prototype._approximateSize = function (start, end, callback) {
