@@ -11,6 +11,11 @@ var testBuffer = new Buffer('foo')
 require('abstract-leveldown/abstract/leveldown-test').args(leveljs, tape, testCommon)
 require('abstract-leveldown/abstract/open-test').all(leveljs, tape, testCommon)
 require('abstract-leveldown/abstract/put-test').all(leveljs, tape, testCommon)
+/* run these tests in Firefox with "dom.indexedDB.experimental" pref set to true
+require('abstract-leveldown/abstract/put-test').setUp(leveljs, tape, testCommon)
+require('abstract-leveldown/abstract/put-test').sync(tape)
+require('abstract-leveldown/abstract/put-test').tearDown(tape, testCommon)
+*/
 require('abstract-leveldown/abstract/del-test').all(leveljs, tape, testCommon)
 require('abstract-leveldown/abstract/get-test').all(leveljs, tape, testCommon)
 require('abstract-leveldown/abstract/put-get-del-test').all(leveljs, tape, testCommon, testBuffer)

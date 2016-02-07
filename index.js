@@ -109,21 +109,28 @@ Level.prototype._get = function (key, options, callback) {
     found = true;
     value = item;
   }, opts);
+  */
 }
 
 Level.prototype._del = function(id, options, callback) {
   this.idb.remove(id, callback, callback)
 }
 
-Level.prototype._put = function (key, value, options, callback) {
-  if (value instanceof ArrayBuffer) {
-    value = toBuffer(new Uint8Array(value))
+Level.prototype._put = function(key, value, options, callback) {
+  var mode = 'readwrite'
+  if (options.sync === true) {
+    mode = 'readwriteflush' // only supported in Firefox (with "dom.indexedDB.experimental" pref set to true)
   }
-  var obj = this.convertEncoding(key, value, options)
-  if (Buffer.isBuffer(obj.value)) {
-    obj.value = new Uint8Array(value.toArrayBuffer())
+  var tx = this._db.transaction(this._idbOpts.storeName, mode)
+  var req = tx.objectStore(this._idbOpts.storeName).put(value, key)
+
+  tx.onabort = function() {
+    callback(tx.error)
   }
-  this.idb.put(obj.key, obj.value, function() { callback() }, callback)
+
+  tx.oncomplete = function() {
+    callback()
+  }
 }
 
 Level.prototype.convertEncoding = function(key, value, options) {
