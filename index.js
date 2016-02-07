@@ -112,8 +112,21 @@ Level.prototype._get = function (key, options, callback) {
   */
 }
 
-Level.prototype._del = function(id, options, callback) {
-  this.idb.remove(id, callback, callback)
+Level.prototype._del = function(key, options, callback) {
+  var mode = 'readwrite'
+  if (options.sync === true) {
+    mode = 'readwriteflush' // only supported in Firefox (with "dom.indexedDB.experimental" pref set to true)
+  }
+  var tx = this._db.transaction(this._idbOpts.storeName, mode)
+  var req = tx.objectStore(this._idbOpts.storeName).delete(key)
+
+  tx.onabort = function() {
+    callback(tx.error)
+  }
+
+  tx.oncomplete = function() {
+    callback()
+  }
 }
 
 Level.prototype._put = function(key, value, options, callback) {
