@@ -164,35 +164,32 @@ Level.prototype._iterator = function (options) {
   return new Iterator(this.idb, options)
 }
 
-Level.prototype._batch = function (array, options, callback) {
-  var op
-  var i
-  var k
-  var copiedOp
-  var currentOp
-  var modified = []
-  
-  if (array.length === 0) return setTimeout(callback, 0)
-  
-  for (i = 0; i < array.length; i++) {
-    copiedOp = {}
-    currentOp = array[i]
-    modified[i] = copiedOp
-    
-    var converted = this.convertEncoding(currentOp.key, currentOp.value, options)
-    currentOp.key = converted.key
-    currentOp.value = converted.value
+// only support sync: true on batch level, not operation level
+Level.prototype._batch = function(array, options, callback) {
+  if (array.length === 0) return process.nextTick(callback)
 
-    for (k in currentOp) {
-      if (k === 'type' && currentOp[k] == 'del') {
-        copiedOp[k] = 'remove'
-      } else {
-        copiedOp[k] = currentOp[k]
-      }
-    }
+  var mode = 'readwrite'
+  if (options.sync === true) {
+    mode = 'readwriteflush' // only supported in Firefox (with "dom.indexedDB.experimental" pref set to true)
+  }
+  var tx = this._db.transaction(this._idbOpts.storeName, mode)
+  var store = tx.objectStore(this._idbOpts.storeName)
+
+  tx.onabort = function() {
+    callback(tx.error)
   }
 
-  return this.idb.batch(modified, function(){ callback() }, callback)
+  tx.oncomplete = function() {
+    callback()
+  }
+
+  array.forEach(function(currentOp) {
+    if (currentOp.type === 'del') {
+      store.delete(currentOp.key)
+    } else {
+      store.put(currentOp.value, currentOp.key)
+    }
+  })
 }
 
 Level.prototype._close = function (callback) {
