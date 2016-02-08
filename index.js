@@ -81,35 +81,33 @@ Level.prototype._open = function(options, callback) {
   }
 }
 
-Level.prototype._get = function (key, options, callback) {
-  // should differentiatie between undefined values and "not found"
-  var found, value;
-  function onEnd() {
-    if (!found) {
+Level.prototype._get = function(key, options, callback) {
+  var tx = this._db.transaction(this._idbOpts.storeName)
+  var req = tx.objectStore(this._idbOpts.storeName).openCursor(IDBKeyRange.only(key))
+
+  tx.onabort = function() {
+    callback(tx.error)
+  }
+
+  req.onsuccess = function() {
+    var cursor = req.result
+    if (cursor) {
+      var value = cursor.value
+      if (options.asBuffer && !Buffer.isBuffer(value)) {
+        if (value == null)                     value = new Buffer(0)
+        else if (typeof value === 'string')    value = new Buffer(value) // defaults to utf8, should the encoding be utf16? (DOMString)
+        else if (typeof value === 'boolean')   value = new Buffer(String(value)) // compatible with leveldb
+        else if (typeof value === 'number')    value = new Buffer(String(value)) // compatible with leveldb
+        else if (Array.isArray(value))         value = new Buffer(String(value)) // compatible with leveldb
+        else if (value instanceof Uint8Array)  value = new Buffer(value)
+        else return void callback(new TypeError('can\'t coerce `' + value.constructor.name + '` into a Buffer'))
+      }
+      return void callback(null, value, key)
+    } else {
       // 'NotFound' error, consistent with LevelDOWN API
-      return callback(new Error('NotFound'))
+      return void callback(new Error('NotFound'))
     }
-    // by default return buffers, unless explicitly told not to
-    var asBuffer = true
-    if (options.asBuffer === false) asBuffer = false
-    if (options.raw) asBuffer = false
-    if (asBuffer) {
-      if (value instanceof Uint8Array) value = toBuffer(value)
-      else if (value == null) value = new Buffer(0)
-      else value = new Buffer(String(value))
-    }
-    return callback(null, value, key)
-  };
-  var opts = {
-    keyRange: key,
-    onEnd: onEnd,
-    onError: callback
-  };
-  this.idb.iterate(function(item) {
-    found = true;
-    value = item;
-  }, opts);
-  */
+  }
 }
 
 Level.prototype._del = function(key, options, callback) {

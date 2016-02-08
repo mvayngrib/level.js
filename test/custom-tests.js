@@ -12,13 +12,78 @@ module.exports.all = function(leveljs, tape, testCommon) {
   
   module.exports.setUp(leveljs, tape, testCommon)
   
-  tape('store native JS types with raw = true', function(t) {
+  tape('should use a callback only once per next-handler', function(t) {
     var level = leveljs(testCommon.location())
     level.open(function(err) {
       t.notOk(err, 'no error')
-      level.put('key', true, { raw: true },  function (err) {
+      level.put('akey', 'aval',  function (err) {
         t.notOk(err, 'no error')
-        level.get('key', { raw: true }, function(err, value) {
+        level.put('bkey', 'bval',  function (err) {
+          t.notOk(err, 'no error')
+          level.put('ckey', 'cval',  function (err) {
+            t.notOk(err, 'no error')
+
+            var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false })
+
+            iterator.next(function(err, key, value) {
+              t.notOk(err, 'no error')
+              t.equal(key, 'akey', 'should have akey')
+              t.equal(value, 'aval', 'should have avalue')
+
+              setTimeout(function() {
+                iterator.next(function(err, key, value) {
+                  t.notOk(err, 'no error')
+                  t.equal(key, 'bkey', 'should have bkey')
+                  t.equal(value, 'bval', 'should have bvalue')
+
+                  setTimeout(function() {
+                    iterator.next(function(err, key, value) {
+                      t.notOk(err, 'no error')
+                      t.equal(key, 'ckey', 'should have ckey')
+                      t.equal(value, 'cval', 'should have cvalue')
+
+                      setTimeout(function() {
+                        iterator.next(function(err, key, value) {
+                          t.notOk(err, 'no error')
+                          t.notOk(key, 'end, no key')
+                          t.notOk(value, 'end, no value')
+                          t.end()
+                        })
+                      }, 1)
+                    })
+                  }, 1)
+                })
+              }, 1)
+            })
+          })
+        })
+      })
+    })
+  })
+
+  tape('throw if trying to convert Uint16Array to Buffer', function (t) {
+    var key = 'uint16array'
+    var value = new Uint16Array([257])
+    var level = leveljs(testCommon.location())
+    level.open(function(err) {
+      t.notOk(err, 'no error')
+      level.put(key, value, function (err) {
+        t.notOk(err, 'no error')
+        level.get(key, function (err, _value) {
+          t.equal(err.message, 'can\'t coerce `Uint16Array` into a Buffer')
+          t.end()
+        })
+      })
+    })
+  })
+
+  tape('get native JS types with asBuffer = false', function(t) {
+    var level = leveljs(testCommon.location())
+    level.open(function(err) {
+      t.notOk(err, 'no error')
+      level.put('key', true, function (err) {
+        t.notOk(err, 'no error')
+        level.get('key', { asBuffer: false }, function(err, value) {
           t.notOk(err, 'no error')
           t.ok(typeof value === 'boolean', 'is boolean type')
           t.ok(value, 'is truthy')
