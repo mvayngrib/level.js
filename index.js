@@ -200,7 +200,9 @@ Level.prototype._close = function (callback) {
 Level.prototype._approximateSize = function (start, end, callback) {
   var err = new Error('Not implemented')
   if (callback)
-    return callback(err)
+    return void process.nextTick(function() {
+      callback(err)
+    })
 
   throw err
 }
