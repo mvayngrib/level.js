@@ -24,10 +24,7 @@
   },
   "dependencies": {
     "abstract-leveldown": "^2.4.1",
-    "idb-wrapper": "^1.5.0",
-    "isbuffer": "~0.0.0",
     "ltgt": "^2.1.2",
-    "typedarray-to-buffer": "~1.0.0",
     "xtend": "~2.1.2"
   },
   "testling": {

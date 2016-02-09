@@ -1,12 +1,9 @@
 module.exports = Level
 
-var IDB = require('idb-wrapper')
 var AbstractLevelDOWN = require('abstract-leveldown').AbstractLevelDOWN
 var util = require('util')
 var Iterator = require('./iterator')
-var isBuffer = require('isbuffer')
 var xtend = require('xtend')
-var toBuffer = require('typedarray-to-buffer')
 
 function Level(location) {
   if (!(this instanceof Level)) return new Level(location)
