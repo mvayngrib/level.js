@@ -222,7 +222,7 @@ module.exports.all = function(leveljs, tape, testCommon) {
         t.equal(value, 'value', 'should have value')
         level.close(function (err) {
           t.notOk(err, 'no error')
-          leveljs.destroy(level.db, function (err) {
+          leveljs.destroy(level, function (err) {
             t.notOk(err, 'no error')
             var level2 = levelup('destroy-test-2', {db: leveljs})
             level2.get('key', function (err, value) {

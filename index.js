@@ -209,20 +209,74 @@ Level.prototype._isBuffer = function (obj) {
   return Buffer.isBuffer(obj)
 }
 
-Level.destroy = function (db, callback) {
-  if (typeof db === 'object') {
-    var prefix = db.IDBOptions.storePrefix || 'IDBWrapper-'
-    var dbname = db.location
+/**
+ * Destroy the object store and the database if no other object stores exist.
+ *
+ * @param {String|Object} location  Name of the database or a database instance.
+ */
+Level.destroy = function(db, callback) {
+  var idbOpts
+  if (db != null && typeof db === 'object') {
+    idbOpts = xtend({
+      location: db.location,
+      storeName: db.location
+    }, db._idbOpts)
+  } else if (typeof db === 'string') {
+    idbOpts = {
+      location: db,
+      storeName: db
+    }
   } else {
-    var prefix = 'IDBWrapper-'
-    var dbname = db
+    throw new TypeError('location must be a string or an object')
   }
-  var request = indexedDB.deleteDatabase(prefix + dbname)
-  request.onsuccess = function() {
-    callback()
+
+  if (typeof idbOpts.location !== 'string') throw new TypeError('location must be a string')
+  if (typeof idbOpts.storeName !== 'string') throw new TypeError('db.storeName must be a string')
+
+  var req = indexedDB.open(idbOpts.location) // use the databases current version
+
+  req.onerror = function(ev) {
+    callback(ev.target.error)
   }
-  request.onerror = function(err) {
-    callback(err)
+
+  // if the database contains no other stores, delete the database as well
+  req.onsuccess = function() {
+    var db = req.result
+
+    function deleteDatabase(name) {
+      var req2 = indexedDB.deleteDatabase(name)
+      req2.onerror = function(ev) {
+        callback(ev.target.error)
+      }
+      req2.onsuccess = function() {
+        callback()
+      }
+    }
+
+    db.close()
+
+    if (db.objectStoreNames.length === 0) return void deleteDatabase(idbOpts.location)
+    if (!db.objectStoreNames.contains(idbOpts.storeName)) return void callback()
+
+    // delete object store, and if no object stores remain, delete database
+    var req2 = indexedDB.open(idbOpts.location, db.version + 1)
+
+    req2.onerror = function(ev) {
+      callback(ev.target.error)
+    }
+
+    req2.onupgradeneeded = function() {
+      db = req2.result
+      db.deleteObjectStore(idbOpts.storeName)
+    }
+
+    req2.onsuccess = function() {
+      db = req2.result
+      db.close()
+
+      if (db.objectStoreNames.length === 0) deleteDatabase(idbOpts.location)
+      else callback()
+    }
   }
 }
 
