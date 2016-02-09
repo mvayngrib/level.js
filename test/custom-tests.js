@@ -12,7 +12,101 @@ module.exports.all = function(leveljs, tape, testCommon) {
   
   module.exports.setUp(leveljs, tape, testCommon)
   
-  tape('should use a callback only once per next-handler', function(t) {
+  tape('should call next async', function(t) {
+    var level = leveljs(testCommon.location())
+    level.open(function(err) {
+      t.notOk(err, 'no error')
+      level.put('a', 'a',  function (err) {
+        t.notOk(err, 'no error')
+
+        var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false, reopenOnTimeout: true })
+
+        var i = 0
+        // give the cursor of the iterator some time to get to the first item so that next can call back right away
+        setTimeout(function() {
+          iterator.next(function(err, key, value) {
+            t.notOk(err, 'no error')
+            t.equal(key, 'a', 'key a')
+            t.equal(value, 'a', 'value a')
+
+            t.equal(i, 1, 'should call next async')
+            t.end()
+          })
+          i++
+        }, 5)
+      })
+    })
+  })
+
+  tape('should not timeout if next is called fast enough', function(t) {
+    var level = leveljs(testCommon.location())
+    level.open(function(err) {
+      t.notOk(err, 'no error')
+      level.put('a', 'a',  function (err) {
+        t.notOk(err, 'no error')
+        level.put('b', 'b',  function (err) {
+          t.notOk(err, 'no error')
+
+          var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false })
+
+          // call next in the callback of the previous call to next
+
+          iterator.next(function(err, key, value) {
+            t.notOk(err, 'no error')
+            t.equal(key, 'a', 'key a')
+            t.equal(value, 'a', 'value a')
+
+            // call next right away
+            iterator.next(function(err, key, value) {
+              t.notOk(err, 'no error')
+              t.equal(key, 'b', 'key b')
+              t.equal(value, 'b', 'value b')
+
+              // call next right away
+              iterator.next(function(err, key, value) {
+                t.notOk(err, 'no error')
+                t.notOk(key, 'should have no key')
+                t.notOk(value, 'should have no value')
+                t.end()
+              })
+            })
+          })
+        })
+      })
+    })
+  })
+
+  tape('should timeout if next is not called fast enough (async)', function(t) {
+    // Note: Safari can sometimes be less aggressive about killing the cursor and a timeout may not always occur
+    var level = leveljs(testCommon.location())
+    level.open(function(err) {
+      t.notOk(err, 'no error')
+      level.put('a', 'a',  function (err) {
+        t.notOk(err, 'no error')
+        level.put('b', 'b',  function (err) {
+          t.notOk(err, 'no error')
+
+          var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false })
+
+          iterator.next(function(err, key, value) {
+            t.notOk(err, 'no error')
+            t.equal(key, 'a', 'should have a key')
+            t.equal(value, 'a', 'should have a value')
+
+            process.nextTick(function() {
+              iterator.next(function(err, key, value) {
+                t.equal(err && err.name, 'TransactionInactiveError', 'should have a timeout error')
+                t.equal(iterator._cursorsStarted, 1, 'should not have reopened the cursor')
+                t.end()
+              })
+            })
+          })
+        })
+      })
+    })
+  })
+
+  tape('should not timeout with reopenOnTimeout = true', function(t) {
     var level = leveljs(testCommon.location())
     level.open(function(err) {
       t.notOk(err, 'no error')
@@ -23,37 +117,38 @@ module.exports.all = function(leveljs, tape, testCommon) {
           level.put('ckey', 'cval',  function (err) {
             t.notOk(err, 'no error')
 
-            var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false })
+            var iterator = level.iterator({ keyAsBuffer: false, valueAsBuffer: false, reopenOnTimeout: true })
 
             iterator.next(function(err, key, value) {
               t.notOk(err, 'no error')
-              t.equal(key, 'akey', 'should have akey')
-              t.equal(value, 'aval', 'should have avalue')
+              t.equal(key, 'akey', 'key a')
+              t.equal(value, 'aval', 'value a')
 
               setTimeout(function() {
                 iterator.next(function(err, key, value) {
                   t.notOk(err, 'no error')
-                  t.equal(key, 'bkey', 'should have bkey')
-                  t.equal(value, 'bval', 'should have bvalue')
+                  t.equal(key, 'bkey', 'value b')
+                  t.equal(value, 'bval', 'value b')
 
                   setTimeout(function() {
                     iterator.next(function(err, key, value) {
                       t.notOk(err, 'no error')
-                      t.equal(key, 'ckey', 'should have ckey')
-                      t.equal(value, 'cval', 'should have cvalue')
+                      t.equal(key, 'ckey', 'value c')
+                      t.equal(value, 'cval', 'value c')
 
                       setTimeout(function() {
                         iterator.next(function(err, key, value) {
                           t.notOk(err, 'no error')
                           t.notOk(key, 'end, no key')
                           t.notOk(value, 'end, no value')
+                          t.equal(iterator._cursorsStarted, 3, 'should have reopened the cursor three times')
                           t.end()
                         })
-                      }, 1)
+                      }, 5)
                     })
-                  }, 1)
+                  }, 5)
                 })
-              }, 1)
+              }, 5) // Safari can sometimes be less aggressive about killing the cursor
             })
           })
         })
@@ -92,7 +187,7 @@ module.exports.all = function(leveljs, tape, testCommon) {
       })
     })
   })
-  
+
   // NOTE: in chrome (at least) indexeddb gets buggy if you try and destroy a db,
   // then create it again, then try and destroy it again. these avoid doing that
 

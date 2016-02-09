@@ -160,8 +160,8 @@ Level.prototype.convertEncoding = function(key, value, options) {
   return obj
 }
 
-Level.prototype._iterator = function (options) {
-  return new Iterator(this.idb, options)
+Level.prototype._iterator = function(options) {
+  return new Iterator(this, options)
 }
 
 // only support sync: true on batch level, not operation level
