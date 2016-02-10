@@ -166,7 +166,10 @@ module.exports.all = function(leveljs, tape, testCommon) {
         t.notOk(err, 'no error')
         level.get(key, function (err, _value) {
           t.equal(err.message, 'can\'t coerce `Uint16Array` into a Buffer')
-          t.end()
+          level.close(function(err) {
+            t.notOk(err, 'no error')
+            t.end()
+          })
         })
       })
     })
@@ -182,7 +185,10 @@ module.exports.all = function(leveljs, tape, testCommon) {
           t.notOk(err, 'no error')
           t.ok(typeof value === 'boolean', 'is boolean type')
           t.ok(value, 'is truthy')
-          t.end()
+          level.close(function(err) {
+            t.notOk(err, 'no error')
+            t.end()
+          })
         })
       })
     })
