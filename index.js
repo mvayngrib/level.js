@@ -25,7 +25,9 @@ Level.prototype._open = function(options, callback) {
 
   // assume createIfMissing and errorIfExists are initialized by abstract-leveldown
   this._idbOpts = xtend({
-    storeName: this.location
+    storeName: this.location,
+    keyEncoding: 'none',
+    valueEncoding: 'none'
   }, options)
 
   var req = indexedDB.open(this.location) // use the databases current version
