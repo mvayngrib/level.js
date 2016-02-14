@@ -1,6 +1,7 @@
 var util = require('util')
 var AbstractIterator  = require('abstract-leveldown').AbstractIterator
 var ltgt = require('ltgt')
+var xtend = require('xtend')
 
 module.exports = Iterator
 
@@ -51,6 +52,14 @@ Iterator.prototype._startCursor = function(options) {
   var upperOpen = ltgt.upperBoundExclusive(options)
 
   var direction = options.reverse ? 'prev': 'next'
+
+  options = xtend(this._idbOpts, options)
+
+  // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
+  if (lower)
+    if (options.keyEncoding === 'binary' && !Array.isArray(lower)) lower = Array.prototype.slice.call(lower)
+  if (upper)
+    if (options.keyEncoding === 'binary' && !Array.isArray(upper)) upper = Array.prototype.slice.call(upper)
 
   // if this is not the first iteration, use lastIteratedKey
   if (this._lastIteratedKey) {
@@ -107,6 +116,11 @@ Iterator.prototype._startCursor = function(options) {
       var value = cursor.value
 
       self._lastIteratedKey = key
+
+      // automatically convert Uint8Array values to Buffer
+      if (value instanceof Uint8Array) value = new Buffer(value)
+      if (options.keyEncoding === 'binary' && Array.isArray(key)) key = new Buffer(key)
+      if (options.valueEncoding === 'binary' && !Buffer.isBuffer(value)) value = new Buffer(value)
 
       if (options.keyAsBuffer && !Buffer.isBuffer(key)) {
         if (key == null)                     key = new Buffer(0)

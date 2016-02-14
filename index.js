@@ -81,6 +81,13 @@ Level.prototype._open = function(options, callback) {
 }
 
 Level.prototype._get = function(key, options, callback) {
+  options = xtend(this._idbOpts, options)
+
+  var origKey = key
+
+  // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
+  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+
   var tx = this._db.transaction(this._idbOpts.storeName)
   var req = tx.objectStore(this._idbOpts.storeName).openCursor(IDBKeyRange.only(key))
 
@@ -92,6 +99,11 @@ Level.prototype._get = function(key, options, callback) {
     var cursor = req.result
     if (cursor) {
       var value = cursor.value
+
+      // automatically convert Uint8Array values to Buffer
+      if (value instanceof Uint8Array) value = new Buffer(value)
+      if (options.valueEncoding === 'binary' && !Buffer.isBuffer(value)) value = new Buffer(value)
+
       if (options.asBuffer && !Buffer.isBuffer(value)) {
         if (value == null)                     value = new Buffer(0)
         else if (typeof value === 'string')    value = new Buffer(value) // defaults to utf8, should the encoding be utf16? (DOMString)
@@ -101,7 +113,7 @@ Level.prototype._get = function(key, options, callback) {
         else if (value instanceof Uint8Array)  value = new Buffer(value)
         else return void callback(new TypeError('can\'t coerce `' + value.constructor.name + '` into a Buffer'))
       }
-      return void callback(null, value, key)
+      return void callback(null, value, origKey)
     } else {
       // 'NotFound' error, consistent with LevelDOWN API
       return void callback(new Error('NotFound'))
@@ -110,6 +122,11 @@ Level.prototype._get = function(key, options, callback) {
 }
 
 Level.prototype._del = function(key, options, callback) {
+  options = xtend(this._idbOpts, options)
+
+  // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
+  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+
   var mode = 'readwrite'
   if (options.sync === true) {
     mode = 'readwriteflush' // only supported in Firefox (with "dom.indexedDB.experimental" pref set to true)
@@ -127,6 +144,11 @@ Level.prototype._del = function(key, options, callback) {
 }
 
 Level.prototype._put = function(key, value, options, callback) {
+  options = xtend(this._idbOpts, options)
+
+  // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
+  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+
   var mode = 'readwrite'
   if (options.sync === true) {
     mode = 'readwriteflush' // only supported in Firefox (with "dom.indexedDB.experimental" pref set to true)
@@ -167,6 +189,11 @@ Level.prototype._batch = function(array, options, callback) {
   }
 
   array.forEach(function(currentOp) {
+    var opts = xtend(options, currentOp)
+
+    // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
+    if (opts.keyEncoding === 'binary' && !Array.isArray(currentOp.key)) currentOp.key = Array.prototype.slice.call(currentOp.key)
+
     if (currentOp.type === 'del') {
       store.delete(currentOp.key)
     } else {
