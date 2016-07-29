@@ -30,15 +30,24 @@ Level.prototype._open = function(options, callback) {
     valueEncoding: 'none'
   }, options)
 
-  var req = indexedDB.open(this.location) // use the databases current version
+  // support passing an open database
+  if (this._idbOpts.idb) {
+    onsuccess(this._idbOpts.idb)
+  } else {
+    var req = indexedDB.open(this.location) // use the databases current version
+    req.onerror = onerror
+    req.onsuccess = function() {
+      onsuccess(req.result)
+    }
+  }
 
-  req.onerror = function(ev) {
+  function onerror(ev) {
     callback(ev.target.error)
   }
 
   // if the store does not exist and createIfMissing is true, create the object store
-  req.onsuccess = function() {
-    self._db = req.result
+  function onsuccess(db) {
+    self._db = db
 
     var exists = self._db.objectStoreNames.contains(self._idbOpts.storeName)
 
