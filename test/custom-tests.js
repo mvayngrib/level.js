@@ -9,9 +9,9 @@ module.exports.setUp = function (leveldown, test, testCommon) {
 }
 
 module.exports.all = function(leveljs, tape, testCommon) {
-  
+
   module.exports.setUp(leveljs, tape, testCommon)
-  
+
   tape('should use a callback only once per next-handler', function(t) {
     var level = leveljs(testCommon.location())
     level.open(function(err) {
@@ -139,4 +139,35 @@ module.exports.all = function(leveljs, tape, testCommon) {
     })
   })
 
+  tape.only('read stream', function (t) {
+    var level = levelup('read-stream-test', {db: leveljs})
+    var batch = new Array(2).fill(null).map(function (whatever, i) {
+      return {
+        type: 'put',
+        key: '' + i,
+        value: '' + i
+      }
+    })
+
+    level.batch(batch, function (err) {
+      if (err) throw err
+
+      const data = []
+      level.createReadStream()
+        .on('data', function (item) {
+          data.push(item)
+        })
+        .on('error', t.error)
+        .on('end', function () {
+          t.same(data, batch.map(function (row) {
+            return {
+              key: row.key,
+              value: row.value
+            }
+          }))
+
+          t.end()
+        })
+    })
+  })
 }
