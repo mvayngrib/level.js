@@ -4,6 +4,7 @@ var AbstractLevelDOWN = require('abstract-leveldown').AbstractLevelDOWN
 var util = require('util')
 var Iterator = require('./iterator')
 var xtend = require('xtend')
+var utils = require('./utils')
 
 function Level(location) {
   if (!(this instanceof Level)) return new Level(location)
@@ -95,7 +96,7 @@ Level.prototype._get = function(key, options, callback) {
   var origKey = key
 
   // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
-  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+  key = utils.normalizeKey(options, key)
 
   var tx = this._db.transaction(this._idbOpts.storeName)
   var req = tx.objectStore(this._idbOpts.storeName).openCursor(IDBKeyRange.only(key))
@@ -134,7 +135,7 @@ Level.prototype._del = function(key, options, callback) {
   options = xtend(this._idbOpts, options)
 
   // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
-  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+  key = utils.normalizeKey(options, key)
 
   var mode = 'readwrite'
   if (options.sync === true) {
@@ -156,7 +157,7 @@ Level.prototype._put = function(key, value, options, callback) {
   options = xtend(this._idbOpts, options)
 
   // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
-  if (options.keyEncoding === 'binary' && !Array.isArray(key)) key = Array.prototype.slice.call(key)
+  key = utils.normalizeKey(options, key)
 
   var mode = 'readwrite'
   if (options.sync === true) {
@@ -201,7 +202,7 @@ Level.prototype._batch = function(array, options, callback) {
     var opts = xtend(options, currentOp)
 
     // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
-    if (opts.keyEncoding === 'binary' && !Array.isArray(currentOp.key)) currentOp.key = Array.prototype.slice.call(currentOp.key)
+    currentOp.key = utils.normalizeKey(options, currentOp.key)
 
     if (currentOp.type === 'del') {
       store.delete(currentOp.key)

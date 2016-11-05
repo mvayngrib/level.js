@@ -9,9 +9,9 @@ module.exports.setUp = function (leveldown, test, testCommon) {
 }
 
 module.exports.all = function(leveljs, tape, testCommon) {
-  
+
   module.exports.setUp(leveljs, tape, testCommon)
-  
+
   tape('should call next async', function(t) {
     var level = leveljs(testCommon.location())
     level.open(function(err) {
@@ -256,4 +256,23 @@ module.exports.all = function(leveljs, tape, testCommon) {
     })
   })
 
+  tape.only('stringify buffer keys', function (t) {
+    var level = levelup('buf-key-test', {db: leveljs, keyEncoding:'binary'})
+    var key = new Buffer('hey')
+    var val = 'ho'
+    level.put(key, val, function (err) {
+      t.error(err)
+      level.get(key, function (err, storedVal) {
+        t.error(err)
+        t.equal(storedVal, val)
+        var s = level.createReadStream()//{ gte: 'h', lt: 'hf' });
+        s.on('data', function(data) {
+          t.same(data, { key: key, value: val })
+        })
+        s.on('end', function() {
+          t.end()
+        })
+      })
+    })
+  })
 }

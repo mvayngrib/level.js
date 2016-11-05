@@ -2,6 +2,7 @@ var util = require('util')
 var AbstractIterator  = require('abstract-leveldown').AbstractIterator
 var ltgt = require('ltgt')
 var xtend = require('xtend')
+var utils = require('./utils')
 
 module.exports = Iterator
 
@@ -57,9 +58,9 @@ Iterator.prototype._startCursor = function(options) {
 
   // support binary keys for any iterable type via array (ArrayBuffers as keys are only supported in IndexedDB Second Edition)
   if (lower)
-    if (options.keyEncoding === 'binary' && !Array.isArray(lower)) lower = Array.prototype.slice.call(lower)
+    lower = utils.normalizeKey(options, lower)
   if (upper)
-    if (options.keyEncoding === 'binary' && !Array.isArray(upper)) upper = Array.prototype.slice.call(upper)
+    upper = utils.normalizeKey(options, upper)
 
   // if this is not the first iteration, use lastIteratedKey
   if (this._lastIteratedKey) {
@@ -124,7 +125,7 @@ Iterator.prototype._startCursor = function(options) {
 
       if (options.keyAsBuffer && !Buffer.isBuffer(key)) {
         if (key == null)                     key = new Buffer(0)
-        else if (typeof key === 'string')    key = new Buffer(key) // defaults to utf8, should the encoding be utf16? (DOMString)
+        else if (typeof key === 'string')    key = utils.denormalizeKey(options, key) // defaults to utf8, should the encoding be utf16? (DOMString)
         else if (typeof key === 'boolean')   key = new Buffer(String(key)) // compatible with leveldb
         else if (typeof key === 'number')    key = new Buffer(String(key)) // compatible with leveldb
         else if (Array.isArray(key))         key = new Buffer(String(key)) // compatible with leveldb
