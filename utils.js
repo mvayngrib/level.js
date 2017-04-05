@@ -8,7 +8,9 @@ var noBinaryKeys = (function isIE () {
   if (msie > 0) return true
 
   // IE11
-  return !(global.ActiveXObject) && 'ActiveXObject' in global
+  if (!(global.ActiveXObject) && 'ActiveXObject' in global) return true
+
+  if (ua.indexOf('Edge') !== -1) return true
 })()
 
 module.exports = {
