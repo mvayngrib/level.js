@@ -256,7 +256,7 @@ module.exports.all = function(leveljs, tape, testCommon) {
     })
   })
 
-  tape.only('stringify buffer keys', function (t) {
+  tape('stringify buffer keys', function (t) {
     var level = levelup('buf-key-test', {db: leveljs, keyEncoding:'binary'})
     var key = new Buffer('hey')
     var val = 'ho'
