@@ -15,12 +15,14 @@ var noBinaryKeys = (function isIE () {
 
 module.exports = {
   normalizeKey: normalizeKey,
-  denormalizeKey: denormalizeKey
+  denormalizeKey: denormalizeKey,
+  // guess, but allow override
+  noBinaryKeys: noBinaryKeys
 }
 
 function normalizeKey (opts, key) {
   if (opts.keyEncoding === 'binary') {
-    if (noBinaryKeys) {
+    if (module.exports.noBinaryKeys) {
       return key instanceof Uint8Array || key instanceof ArrayBuffer ? BINARY_PREFIX + d64.encode(key) : key
     } else if (!Array.isArray(key)) {
       return Array.prototype.slice.call(key)
@@ -32,7 +34,7 @@ function normalizeKey (opts, key) {
 
 function denormalizeKey (opts, key) {
   if ((opts.keyEncoding === 'binary' || opts.keyAsBuffer) && typeof key === 'string') {
-    if (noBinaryKeys) {
+    if (module.exports.noBinaryKeys) {
       return key.indexOf(BINARY_PREFIX) === 0 ? d64.decode(key.slice(BINARY_PREFIX.length)) : key
     } else {
       return new Buffer(key)
